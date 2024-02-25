@@ -1,11 +1,13 @@
 #define WATER_LEVEL         A5
 #define MOISTURE_PIN        A3
+#define PUMP_PIN            8
 
 #define WATER_SENS_POWER    7
 #define MOISTURE_POWER      4
 
-#define REFILL_THRESHOLD    250
-#define MOISTURE_THRESHOLD  550
+#define RES_LEVEL_THRESHOLD 250
+#define MOISTURE_THRESHOLD  500
+#define REFILL_THRESHOLD    1000
 
 #define BAUD_RATE           115200
 #define MOISTURE_ADDR       1
@@ -36,7 +38,6 @@ void setup() {
 }
 /*
 //============================================\\
-
 
   Every X mins check moisture
   
@@ -94,6 +95,16 @@ int Capture_Moisture(){
   return current_moisture;
 }
 
+//TODO: FINISH && CHANGE TO INTERRUPT
+void Water_Plant(int current_moisture){
+  while(current_moisture < REFILL_THRESHOLD){
+    digitalWrite(PUMP_PIN, HIGH);
+    delay(500);
+    digitalWrite(PUMP_PIN, LOW);
+    delay(3000);
+  }
+}
+
 void loop() {
   int current_moisture = 0;
     
@@ -108,7 +119,11 @@ void loop() {
           Serial.println(current_moisture);
 
           //Start pump?
-          //Check pump levels
+          if(current_moisture < MOISTURE_THRESHOLD){
+              Water_Plant(current_moisture);
+
+              //Check pump levels
+          }
         }  
      }
   }
@@ -118,8 +133,11 @@ void loop() {
     Serial.print("TIME TO CHECK: ");
     Serial.println(current_moisture);  
 
-    //Start pump? 
-    //Check pump levels
+    //Start pump?
+    if(current_moisture < MOISTURE_THRESHOLD){
+      Water_Plant(current_moisture);
+      
+      //Check pump levels
+    }
   }
-
 }
