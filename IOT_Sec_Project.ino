@@ -1,38 +1,47 @@
+//DATA LINES
 #define WATER_LEVEL         A5
 #define MOISTURE_PIN        A3
-#define PUMP_PIN            8
 
+//POWER LINES
 #define WATER_SENS_POWER    7
 #define MOISTURE_POWER      4
+#define PUMP_PIN            8
 
+//USER DEFINED THRESHOLDS
 #define RES_LEVEL_THRESHOLD 250
 #define MOISTURE_THRESHOLD  500
 #define REFILL_THRESHOLD    1000
 
+//SERIAL SETUP
 #define BAUD_RATE           115200
-#define MOISTURE_ADDR       1
-
 #define SEND_DATA           "5"
 
+//MOISTURE CAPTURE DELAY TIMEOUT/SETUP
 unsigned long previousCaptureTime = millis();
-//#define CAPTURE_DELAY 3600000 //Every hour
-#define CAPTURE_DELAY 30000    //Every 30 seconds
+#define CAPTURE_DELAY 5000    //Every 5 seconds
 
+//PING TIMEOUT SETUP
 #define PING_DELAY 5000
 unsigned long previousPingTime = millis();
 
 void setup() {
+  //PIN MODES
+
+  //OUTPUTS
   pinMode(WATER_SENS_POWER,   OUTPUT);
   pinMode(MOISTURE_POWER,     OUTPUT);
+  pinMode(PUMP_PIN,           OUTPUT);
 
-  //Turn off everything
-  digitalWrite(WATER_SENS_POWER,  LOW);
-  digitalWrite(MOISTURE_POWER,    LOW);
-  
+  //INPUTS
   pinMode(WATER_LEVEL,        INPUT);
   pinMode(MOISTURE_PIN,       INPUT);
+
+  //DEFAULTS
+  digitalWrite(WATER_SENS_POWER,  LOW);
+  digitalWrite(MOISTURE_POWER,    LOW);
+  digitalWrite(PUMP_PIN,          LOW);
   
-  //Serial
+  //Serial SETUP
   Serial.begin(BAUD_RATE);
   Serial.setTimeout(10);
 }
@@ -142,13 +151,15 @@ TODO:
 */ 
 
 void Water_Plant(){
-
-  while(Capture_Moisture() < REFILL_THRESHOLD){
+  int current_moisture = 0;
+  
+  do {
+    current_moisture = Capture_Moisture();
     digitalWrite(PUMP_PIN, HIGH);
     delay(500);
     digitalWrite(PUMP_PIN, LOW);
-    delay(3000);
-  }
+    delay(3000); 
+  }while(current_moisture > REFILL_THRESHOLD);
 }
 
 
@@ -188,12 +199,25 @@ bool Res_Levels_Low(){
   
 }
 
+/*
+ * TODO: CHECK PUMP LEVELS WHILE WATERING.
+ * 
+ * Explanation:
+ *      PUMP MIGHT RUN DRY IN THE MIDDLE OF THE WATERING
+ *      THUS WILL NEVER GET MOISTURE ABOVE THRESHOLD
+ *      FOREVER RUNNING PUMP AT 0.5s INTERVALS
+ */
+
 void loop() {
   int current_moisture = 0;
+
+  //If there is an input detected on the serial buffer
   if(Serial.available()){
-    //Stops constant pinging
+    //Ping timeout of PING_DELAY ms
+    // Default: 5 seconds => 5000ms
       if(Allow_Ping()){
         String task = Serial.readString();
+        Serial.println("USER PINGS");
     
         //Check Moisture and send results to user
         if(task == SEND_DATA){
@@ -201,12 +225,12 @@ void loop() {
           Serial.print("From user: ");
           Serial.println(current_moisture);
 
-          //Start pump?
+          //Does the plant need to be watered?
           if(current_moisture > MOISTURE_THRESHOLD){
             //If moisture is less than the threshold water plant
             Water_Plant();
 
-            //Check pump levels
+            //After watering the plant, does it need to be refilled?
             if(Res_Levels_Low()){
               Serial.println("Alert User Pump is low");
             }
@@ -224,7 +248,7 @@ void loop() {
   if(Time_To_Check_Moisture()){
     current_moisture = Capture_Moisture();
     Serial.print("TIME TO CHECK: ");
-    Serial.println(current_moisture);  
+    Serial.println(current_moisture);
 
     //Start pump?
     if(current_moisture > MOISTURE_THRESHOLD){
