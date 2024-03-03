@@ -251,12 +251,15 @@ void loop() {
           //Does the plant need to be watered?
           if(current_moisture > MOISTURE_THRESHOLD){
             //If moisture is less than the threshold water plant
+            Serial.println("Plant needs watering");
             Water_Plant();
 
             //After watering the plant, does it need to be refilled?
             if(Res_Levels_Low()){
               Serial.println("CRITICAL WARNING: PUMP NEEDS TO BE REFILLED.");
             }
+          } else {
+            Serial.println("Plant does not need watering.");
           }
         }  
      }
@@ -279,11 +282,12 @@ void loop() {
       Water_Plant();
       
       
-      
       //Check pump levels
       if(Res_Levels_Low()){
         Serial.println("Alert User Pump is low");
       }
+    } else {
+      Serial.println("Plant does not need watering.");
     }
   }
 }
