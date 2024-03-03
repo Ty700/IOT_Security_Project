@@ -10,7 +10,6 @@
 //USER DEFINED THRESHOLDS
 #define RES_LEVEL_THRESHOLD 250
 #define MOISTURE_THRESHOLD  500
-#define REFILL_THRESHOLD    1000
 
 //SERIAL SETUP
 #define BAUD_RATE           115200
@@ -18,7 +17,7 @@
 
 //MOISTURE CAPTURE DELAY TIMEOUT/SETUP
 unsigned long previousCaptureTime = millis();
-#define CAPTURE_DELAY 5000    //Every 5 seconds
+#define CAPTURE_DELAY 20000//Every 20 seconds
 
 //PING TIMEOUT SETUP
 #define PING_DELAY 5000
@@ -118,8 +117,8 @@ FUNCTION:
 
 RETURN VALUES:
   0 through 1024 based on moisture.
-    - 0    => dry
-    - 1024 => moist.
+    - 0    => moist
+    - 1024 => dry
 */ 
 int Capture_Moisture(){
 
@@ -133,35 +132,6 @@ int Capture_Moisture(){
 
   return current_moisture;
 }
-
-/* 
-FUNCTION: 
-* Will constantly refill until moisture is above a threshold
-* Refills for a half second interval
-* Waits for water to drain to the bottom
-* Reads it again, and determines if soil needs more water ot not
-* 
-RETURN VALUES:
-  Void
-
-TODO: 
-* CHANGE TO INTERRUPT
-* If this is executing and the user pings to read moisture, it will miss the request since this
-* (and every other delay) halts code execution. Again, super inefficent, maybe I will change it later.
-*/ 
-
-void Water_Plant(){
-  int current_moisture = 0;
-  
-  do {
-    current_moisture = Capture_Moisture();
-    digitalWrite(PUMP_PIN, HIGH);
-    delay(500);
-    digitalWrite(PUMP_PIN, LOW);
-    delay(3000); 
-  }while(current_moisture > REFILL_THRESHOLD);
-}
-
 
 /* 
 FUNCTION: 
@@ -198,6 +168,59 @@ bool Res_Levels_Low(){
   return status;
   
 }
+
+/* 
+FUNCTION: 
+* Will constantly refill until moisture is above a threshold
+* Refills for a half second interval
+* Waits for water to drain to the bottom
+* Reads it again, and determines if soil needs more water ot not
+* 
+RETURN VALUES:
+  Void
+
+TODO: 
+* CHANGE TO INTERRUPT
+* If this is executing and the user pings to read moisture, it will miss the request since this
+* (and every other delay) halts code execution. Again, super inefficent, maybe I will change it later.
+*/ 
+
+void Water_Plant(){
+  int current_moisture = 1024;
+  bool res_levels_low = false;
+  
+  do {
+    current_moisture = Capture_Moisture();
+    res_levels_low = Res_Levels_Low();
+
+    if(res_levels_low){
+      Serial.println("Failed to water plant.");
+      Serial.println("Reason: Res levls too low.");
+      return;
+    }
+
+//###################DEBUG######################\\
+    Serial.print("Moisture Level: ");
+    Serial.println(current_moisture);
+
+    Serial.print("Res Levels Low: ");
+    
+    if(!res_levels_low){
+        Serial.println("False");
+    } else {
+      Serial.println("True");
+    }
+//##############END OF DEGUG#################//
+
+    digitalWrite(PUMP_PIN, HIGH);
+    delay(500);
+    digitalWrite(PUMP_PIN, LOW);
+    delay(3000);
+  }while(current_moisture > MOISTURE_THRESHOLD);
+  
+  Serial.println("Plant watered successfully.");
+}
+
 
 /*
  * TODO: CHECK PUMP LEVELS WHILE WATERING.
@@ -252,8 +275,9 @@ void loop() {
 
     //Start pump?
     if(current_moisture > MOISTURE_THRESHOLD){
+      Serial.println("Plant needs watering. Starting pump");
       Water_Plant();
-      Serial.println("Starting pump");
+      
       
       
       //Check pump levels
