@@ -188,28 +188,29 @@ TODO:
 void Water_Plant(){
   int current_moisture = 1024;
   bool res_levels_low = false;
+  Serial.println("Starting pump");
   
   do {
     current_moisture = Capture_Moisture();
     res_levels_low = Res_Levels_Low();
 
     if(res_levels_low){
-      Serial.println("Failed to water plant.");
-      Serial.println("Reason: Res levls too low.");
+      Serial.println("WATERING RESULT: FAILED");
+      Serial.println("    REASON: PUMP LEVELS TOO LOW.");
       return;
     }
 
 //###################DEBUG######################\\
-    Serial.print("Moisture Level: ");
-    Serial.println(current_moisture);
-
-    Serial.print("Res Levels Low: ");
-    
-    if(!res_levels_low){
-        Serial.println("False");
-    } else {
-      Serial.println("True");
-    }
+//    Serial.print("Moisture Level: ");
+//    Serial.println(current_moisture);
+//
+//    Serial.print("Res Levels Low: ");
+//    
+//    if(!res_levels_low){
+//        Serial.println("False");
+//    } else {
+//      Serial.println("True");
+//    }
 //##############END OF DEGUG#################//
 
     digitalWrite(PUMP_PIN, HIGH);
@@ -218,7 +219,7 @@ void Water_Plant(){
     delay(3000);
   }while(current_moisture > MOISTURE_THRESHOLD);
   
-  Serial.println("Plant watered successfully.");
+  Serial.println("WATERING STATUS: SUCCESS");
 }
 
 
@@ -242,14 +243,11 @@ void loop() {
     // Default: 5 seconds => 5000ms
       if(Allow_Ping()){
         String task = Serial.readString();
-        Serial.println("USER PINGS");
     
         //Check Moisture and send results to user
         if(task == SEND_DATA){
           current_moisture = Capture_Moisture();
-          Serial.print("From user: ");
-          Serial.println(current_moisture);
-
+          
           //Does the plant need to be watered?
           if(current_moisture > MOISTURE_THRESHOLD){
             //If moisture is less than the threshold water plant
@@ -257,7 +255,7 @@ void loop() {
 
             //After watering the plant, does it need to be refilled?
             if(Res_Levels_Low()){
-              Serial.println("Alert User Pump is low");
+              Serial.println("CRITICAL WARNING: PUMP NEEDS TO BE REFILLED.");
             }
           }
         }  
@@ -277,7 +275,7 @@ void loop() {
 
     //Start pump?
     if(current_moisture > MOISTURE_THRESHOLD){
-      Serial.println("Plant needs watering. Starting pump");
+      Serial.println("Plant needs watering.");
       Water_Plant();
       
       
