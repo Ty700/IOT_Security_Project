@@ -11,13 +11,17 @@
 #define RES_LEVEL_THRESHOLD 250
 #define MOISTURE_THRESHOLD  500
 
+//MOISTURE PERCENTAGE THRESHOLDS
+#define MOISTURE_MAX 1019
+#define MOISTURE_MIN 250
+
 //SERIAL SETUP
 #define BAUD_RATE           115200
 #define SEND_DATA           "5"
 
 //MOISTURE CAPTURE DELAY TIMEOUT/SETUP
 unsigned long previousCaptureTime = millis();
-#define CAPTURE_DELAY 20000//Every 20 seconds
+#define CAPTURE_DELAY 10000//Every 10 seconds
 
 //PING TIMEOUT SETUP
 #define PING_DELAY 5000
@@ -129,7 +133,7 @@ int Capture_Moisture(){
   int current_moisture = analogRead(MOISTURE_PIN);
 
   digitalWrite(MOISTURE_POWER, LOW);
-
+  
   return current_moisture;
 }
 
@@ -188,28 +192,32 @@ TODO:
 void Water_Plant(){
   int current_moisture = 1024;
   bool res_levels_low = false;
+  Serial.println("Starting pump");
   
   do {
     current_moisture = Capture_Moisture();
     res_levels_low = Res_Levels_Low();
 
     if(res_levels_low){
-      Serial.println("Failed to water plant.");
-      Serial.println("Reason: Res levls too low.");
+      Serial.println("WATERING RESULT: FAILED");
+      Serial.println("    REASON: PUMP LEVELS TOO LOW.");
+
+      //Fixes the spam of moisture checks if logic gets stuck in the do-while loop
+      previousCaptureTime = millis();
       return;
     }
 
 //###################DEBUG######################\\
-    Serial.print("Moisture Level: ");
-    Serial.println(current_moisture);
-
-    Serial.print("Res Levels Low: ");
-    
-    if(!res_levels_low){
-        Serial.println("False");
-    } else {
-      Serial.println("True");
-    }
+//    Serial.print("Moisture Level: ");
+//    Serial.println(current_moisture);
+//
+//    Serial.print("Res Levels Low: ");
+//    
+//    if(!res_levels_low){
+//        Serial.println("False");
+//    } else {
+//      Serial.println("True");
+//    }
 //##############END OF DEGUG#################//
 
     digitalWrite(PUMP_PIN, HIGH);
@@ -217,20 +225,15 @@ void Water_Plant(){
     digitalWrite(PUMP_PIN, LOW);
     delay(3000);
   }while(current_moisture > MOISTURE_THRESHOLD);
-  
-  Serial.println("Plant watered successfully.");
+
+  //Fixes the spam of moisture checks if logic gets stuck in the do-while loop
+  previousCaptureTime = millis();
+  Serial.println("WATERING STATUS: SUCCESS");
 }
 
 
 /*
- * TODO: CATCH TIMERS UP
- * 
- * Explanation:
- *      DURING THE TIME THE PLANT IS BEING WATERED
- *      THE COUNTERS FOR THE TIMEOUTS GET OUT OF SYNC
- *      THUS AFTER A SUCCESSFUL WATERING IT SPAM CHECKS THE PLANT
- *      IF THE TIME DURING THE WHILE LOOP EXCEEDS THE 
- *      MOSITURE TIMEOUT DELAY
+ * TODO:
  */
 
 void loop() {
@@ -242,23 +245,28 @@ void loop() {
     // Default: 5 seconds => 5000ms
       if(Allow_Ping()){
         String task = Serial.readString();
-        Serial.println("USER PINGS");
     
         //Check Moisture and send results to user
         if(task == SEND_DATA){
           current_moisture = Capture_Moisture();
-          Serial.print("From user: ");
-          Serial.println(current_moisture);
 
+          String output = "Current Moisture: " + (String)current_moisture;
+
+          Serial.println(output);
+          
           //Does the plant need to be watered?
           if(current_moisture > MOISTURE_THRESHOLD){
             //If moisture is less than the threshold water plant
+            Serial.println("Plant needs watering.");
+            Serial.println("Attempting to water plant.");
             Water_Plant();
 
             //After watering the plant, does it need to be refilled?
             if(Res_Levels_Low()){
-              Serial.println("Alert User Pump is low");
+              Serial.println("CRITICAL WARNING: PUMP NEEDS TO BE REFILLED.");
             }
+          } else {
+            Serial.println("Plant does not need watering.");
           }
         }  
      }
@@ -272,20 +280,24 @@ void loop() {
   
   if(Time_To_Check_Moisture()){
     current_moisture = Capture_Moisture();
-    Serial.print("TIME TO CHECK: ");
-    Serial.println(current_moisture);
+    
+    String output = "Current Moisture: " + (String)current_moisture;
+    
+    Serial.println(output);
 
     //Start pump?
     if(current_moisture > MOISTURE_THRESHOLD){
-      Serial.println("Plant needs watering. Starting pump");
+      Serial.println("Plant needs watering.");
+      Serial.println("Attempting to water plant.");
+      
       Water_Plant();
-      
-      
       
       //Check pump levels
       if(Res_Levels_Low()){
-        Serial.println("Alert User Pump is low");
+        Serial.println("CRITICAL WARNING: PUMP NEEDS TO BE REFILLED.");
       }
+    } else {
+      Serial.println("Plant does not need watering.");
     }
   }
 }
